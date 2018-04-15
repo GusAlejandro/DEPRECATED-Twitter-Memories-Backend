@@ -17,11 +17,12 @@ def initialize_db():
     return tweets
 
 
-def add_tweet_to_db(tweet_id, date):
+def add_tweet_to_db(tweet_id, month, day):
     db = initialize_db()
     tweet = {
         'id' : tweet_id,
-        'date': date
+        'month': month,
+        'day': day
     }
     db.insert_one(tweet)
 

@@ -67,9 +67,12 @@ def process_csv_file(filepath):
         for row in tweet_reader:
             if skipTop:
                 id = row[0]
-                date = row[3][:10]
-                controllerDB.add_tweet_to_db(id, date)
+                std_date = row[3][:10]
+                month = std_date[5:7]
+                day = std_date[8:10]
+                controllerDB.add_tweet_to_db(id, month, day)
                 print("tweet: " + id + " is now done")
-                print("the date was: " + date)
+                print("the day was: " + day)
+                print("the month was: " + month)
             else:
                 skipTop = True

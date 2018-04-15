@@ -1,9 +1,12 @@
 from flask import Flask, request, jsonify
+from flask_login import LoginManager
 from processingEngine.taskProcessor import process_csv_file
 from config import CONFIG
 import uuid, os
 
 app = Flask(__name__)
+login_manager = LoginManager()
+login_manager.init_app(app)
 
 """
 API ENDPOINTS:
@@ -17,6 +20,12 @@ API ENDPOINTS:
         * view the tweets you have made on this day from previous years
 """
 
+@login_manager.user_loader
+def load_user(username):
+    # should look for user in db and return the creation of a user object
+    return None
+
+
 @app.route('/upload', methods=['POST'])
 def file_upload():
     """
@@ -28,6 +37,9 @@ def file_upload():
     data = {'file-code': csv_file.filename}
     process_csv_file.delay("FILES/" + csv_file.filename)
     return jsonify(data)
+
+
+
 
 if __name__ == '__main__':
     app.run(host=CONFIG['IP_ADDR'], port=5000)
