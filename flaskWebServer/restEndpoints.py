@@ -1,7 +1,7 @@
 from flask import Flask, request, jsonify
 from flask_login import LoginManager
 from processingEngine.taskProcessor import process_csv_file
-from databaseController.controllerDB import register_user
+from databaseController.controllerDB import register_user, authenticated_user
 from config import CONFIG
 import uuid, os
 
@@ -25,6 +25,18 @@ API ENDPOINTS:
 def load_user(username):
     # should look for user in db and return the creation of a user object
     return None
+
+@app.route('/login', methods=['GET'])
+def login():
+    # First get args and authenticate user, Flask-Login part comes in next
+    args = request.values
+    usernm = args['username']
+    passwd = args['password']
+    if authenticated_user(usernm, passwd):
+        # then we do flask-login session stuff
+        return "Login successful!"
+    else:
+        return "Wrong password!"
 
 
 @app.route('/register', methods=['POST'])

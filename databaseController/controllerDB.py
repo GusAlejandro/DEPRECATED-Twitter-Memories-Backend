@@ -58,3 +58,13 @@ def is_username_used(username, db):
         return False
     else:
         return True
+
+
+def authenticated_user(username, password):
+    db = initialize_users_db()
+    user = db.find_one({ 'username': username})
+    hashed = bcrypt.hashpw(password.encode(), user['password_hash'].encode())
+    if user['password_hash'] == hashed.decode():
+        return True
+    else:
+        return False
