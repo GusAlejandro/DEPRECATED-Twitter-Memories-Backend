@@ -1,6 +1,7 @@
 from flask import Flask, request, jsonify
 from flask_login import LoginManager
 from processingEngine.taskProcessor import process_csv_file
+from databaseController.controllerDB import register_user
 from config import CONFIG
 import uuid, os
 
@@ -26,6 +27,19 @@ def load_user(username):
     return None
 
 
+@app.route('/register', methods=['POST'])
+def register():
+    """
+    Adds new user to system. Needs username and password.
+    """
+    args = request.values
+    usernm = args['username']
+    passwd = args['password']
+    id = str(uuid.uuid4())
+    response = register_user(usernm, passwd, id)
+    return jsonify(response)
+
+
 @app.route('/upload', methods=['POST'])
 def file_upload():
     """
@@ -39,11 +53,10 @@ def file_upload():
     return jsonify(data)
 
 
-
-
 if __name__ == '__main__':
     app.run(host=CONFIG['IP_ADDR'], port=5000)
 
-# curl command: curl -X POST -F "file=@Downloads/2.csv" http://192.168.1.118:5000/upload
-# to run celery worker celery -A processingEngine.taskProcessor worker --loglevel=info
+# curl : curl -X POST --data "username=john" --data "password=lalala"  http://192.168.1.118:5000/register
+# curl command : curl -X POST -F "file=@Downloads/2.csv" http://192.168.1.118:5000/upload
+# to run celery worker sys
 # to run endpoint server python -m flaskWebServer.restEndpoints
