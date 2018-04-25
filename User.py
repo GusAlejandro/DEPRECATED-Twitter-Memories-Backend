@@ -1,6 +1,7 @@
 class User():
 
-    def __init__(self, username):
+    def __init__(self, id, username):
+        self.id = id
         self.username = username
 
     def is_authenticated(self):
@@ -13,11 +14,7 @@ class User():
         return False
 
     def get_id(self):
-        return self.username
-
-    @staticmethod
-    def validate_login():
-        pass
+        return self.id
 
 
 

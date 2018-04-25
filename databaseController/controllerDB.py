@@ -68,3 +68,15 @@ def authenticated_user(username, password):
         return True
     else:
         return False
+
+
+def fetch_user_by_id(id):
+    db = initialize_users_db()
+    user = db.find_one({'id': id})
+    return user
+
+
+def fetch_user_by_username(username):
+    db = initialize_users_db()
+    user = db.find_one({'username': username})
+    return user

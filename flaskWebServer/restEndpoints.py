@@ -1,13 +1,17 @@
 from flask import Flask, request, jsonify
-from flask_login import LoginManager
+from flask_cors import CORS
+from flask_login import LoginManager, login_user, login_required, current_user, logout_user
 from processingEngine.taskProcessor import process_csv_file
-from databaseController.controllerDB import register_user, authenticated_user
+from databaseController.controllerDB import register_user, authenticated_user, fetch_user_by_id, fetch_user_by_username
+from User import User
 from config import CONFIG
 import uuid, os
 
 app = Flask(__name__)
+app.secret_key = CONFIG['SECRET_KEY']
 login_manager = LoginManager()
 login_manager.init_app(app)
+CORS(app)
 
 """
 API ENDPOINTS:
@@ -22,9 +26,14 @@ API ENDPOINTS:
 """
 
 @login_manager.user_loader
-def load_user(username):
+def load_user(id):
     # should look for user in db and return the creation of a user object
-    return None
+    user_query = fetch_user_by_id(id)
+    try:
+        return User(user_query['id'], user_query['username'])
+    except KeyError:
+        return None
+
 
 @app.route('/login', methods=['GET'])
 def login():
@@ -33,10 +42,13 @@ def login():
     usernm = args['username']
     passwd = args['password']
     if authenticated_user(usernm, passwd):
-        # then we do flask-login session stuff
-        return "Login successful!"
+        # TODO: take advantage of reading from db in auth step and just create the User object from here
+        user_query = fetch_user_by_username(usernm)
+        user = User(user_query['id'], user_query['username'])
+        login_user(user, remember=True)
+        return jsonify({"status": "Login Successful!"})
     else:
-        return "Wrong password!"
+        return jsonify({"status": "Wrong password!"})
 
 
 @app.route('/register', methods=['POST'])
@@ -49,10 +61,11 @@ def register():
     passwd = args['password']
     id = str(uuid.uuid4())
     response = register_user(usernm, passwd, id)
-    return jsonify(response)
+    return jsonify({'status': response})
 
 
 @app.route('/upload', methods=['POST'])
+@login_required
 def file_upload():
     """
     Add file to storage, add initial processing task to queue
@@ -65,10 +78,23 @@ def file_upload():
     return jsonify(data)
 
 
+@app.route('/logout', methods=['GET'])
+@login_required
+def logout():
+    logout_user()
+    return "You are now logged out"
+
+
+@app.route('/play', methods=['GET'])
+@login_required
+def play():
+    print(current_user.username)
+    return jsonify({"status": current_user.username})
+
 if __name__ == '__main__':
     app.run(host=CONFIG['IP_ADDR'], port=5000)
 
 # curl : curl -X POST --data "username=john" --data "password=lalala"  http://192.168.1.118:5000/register
 # curl command : curl -X POST -F "file=@Downloads/2.csv" http://192.168.1.118:5000/upload
-# to run celery worker sys
+# to run celery worker celery -A processingEngine.taskProcessor worker --loglevel=info
 # to run endpoint server python -m flaskWebServer.restEndpoints
