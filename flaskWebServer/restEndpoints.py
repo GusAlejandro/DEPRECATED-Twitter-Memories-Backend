@@ -1,16 +1,15 @@
-from flask import Flask, request, jsonify
+from flask import Flask, request, jsonify, g
 from flask_cors import CORS
-from flask_login import LoginManager, login_user, login_required, current_user, logout_user
+# from flask_login import LoginManager, login_user, login_required, current_user, logout_user
+from flask_httpauth import HTTPBasicAuth
 from processingEngine.taskProcessor import process_csv_file
-from databaseController.controllerDB import register_user, authenticated_user, fetch_user_by_id, fetch_user_by_username
+from databaseController.controllerDB import register_user, check_password, fetch_user_by_id, fetch_user_by_username
 from User import User
 from config import CONFIG
 import uuid, os
 
 app = Flask(__name__)
-app.secret_key = CONFIG['SECRET_KEY']
-login_manager = LoginManager()
-login_manager.init_app(app)
+auth = HTTPBasicAuth()
 CORS(app)
 
 """
@@ -25,30 +24,20 @@ API ENDPOINTS:
         * view the tweets you have made on this day from previous years
 """
 
-@login_manager.user_loader
-def load_user(id):
-    # should look for user in db and return the creation of a user object
-    user_query = fetch_user_by_id(id)
-    try:
-        return User(user_query['id'], user_query['username'])
-    except KeyError:
-        return None
+
+@auth.verify_password
+def verify_pw(username, password):
+    is_auth, user = check_password(username, password)
+    if not user or not is_auth:
+        return False
+    g.user = User(user['id'], user['username'])
+    return True
 
 
-@app.route('/login', methods=['GET'])
-def login():
-    # First get args and authenticate user, Flask-Login part comes in next
-    args = request.values
-    usernm = args['username']
-    passwd = args['password']
-    if authenticated_user(usernm, passwd):
-        # TODO: take advantage of reading from db in auth step and just create the User object from here
-        user_query = fetch_user_by_username(usernm)
-        user = User(user_query['id'], user_query['username'])
-        login_user(user, remember=True)
-        return jsonify({"status": "Login Successful!"})
-    else:
-        return jsonify({"status": "Wrong password!"})
+@app.route('/api/token', methods=['GET'])
+@auth.login_required
+def get_auth_token():
+    return jsonify({ 'message' : g.user.get_username()})
 
 
 @app.route('/register', methods=['POST'])
@@ -65,7 +54,7 @@ def register():
 
 
 @app.route('/upload', methods=['POST'])
-@login_required
+@auth.login_required
 def file_upload():
     """
     Add file to storage, add initial processing task to queue
@@ -79,17 +68,9 @@ def file_upload():
 
 
 @app.route('/logout', methods=['GET'])
-@login_required
 def logout():
-    logout_user()
+    # Currently not used since we only have password based auth, later will clear JWT
     return "You are now logged out"
-
-
-@app.route('/play', methods=['GET'])
-@login_required
-def play():
-    print(current_user.username)
-    return jsonify({"status": current_user.username})
 
 if __name__ == '__main__':
     app.run(host=CONFIG['IP_ADDR'], port=5000)

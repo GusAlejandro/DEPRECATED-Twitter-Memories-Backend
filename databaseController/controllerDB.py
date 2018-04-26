@@ -60,14 +60,20 @@ def is_username_used(username, db):
         return True
 
 
-def authenticated_user(username, password):
+def check_password(username, password):
+    """
+    Takes username and password and verifies them, returns bool and fetched user
+    """
     db = initialize_users_db()
     user = db.find_one({ 'username': username})
-    hashed = bcrypt.hashpw(password.encode(), user['password_hash'].encode())
-    if user['password_hash'] == hashed.decode():
-        return True
-    else:
-        return False
+    try:
+        hashed = bcrypt.hashpw(password.encode(), user['password_hash'].encode())
+        if user['password_hash'] == hashed.decode():
+            return True, user
+        else:
+            return False, user
+    except TypeError:
+        return False, user
 
 
 def fetch_user_by_id(id):
