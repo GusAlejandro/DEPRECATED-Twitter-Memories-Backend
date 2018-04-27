@@ -25,17 +25,22 @@ def initialize_users_db():
     return database.users
 
 
-def add_tweet_to_db(tweet_id, month, day):
+def add_tweet_to_db(user_id, tweet_id, month, day):
+    # TODO: will just use the update instead of inser_one
     db = initialize_tweets_db()
     tweet = {
         'id' : tweet_id,
         'month': month,
         'day': day
     }
-    db.insert_one(tweet)
+    db.find_one_and_update(
+        {'user_id': user_id},
+        {'$addToSet': {'tweets': tweet}}
+    )
 
 
 def register_user(username, password, id):
+    tweets = initialize_tweets_db()
     db = initialize_users_db()
     if is_username_used(username, db):
         return "Username is in use, pick another!"
@@ -49,6 +54,11 @@ def register_user(username, password, id):
             'password_hash': hashed
         }
         db.insert_one(user)
+        tweet_collection = {
+            'user_id': id,
+            'tweets': []
+        }
+        tweets.insert_one(tweet_collection)
         return "Account registered successfully!"
 
 
@@ -76,13 +86,27 @@ def check_password(username, password):
         return False, user
 
 
-def fetch_user_by_id(id):
-    db = initialize_users_db()
-    user = db.find_one({'id': id})
-    return user
+def get_tweets(user_id, month, date):
+    print("Running the quuery for user_id: " + user_id, "for the month: " + month, "for the day: " + date)
+    # format of month/date: MM & DD
+    db = initialize_tweets_db()
+    # TODO: figure this query out, only returning the first tweet found, not all
+    # x = db.find({ "user_id": user_id}, {'tweets': { '$elemMatch' : { 'month': month, 'day':date} } })
+    #x = db.find({"user_id": user_id}, {'tweets': {'$elemMatch': {'month': month, 'day': date}}})
+    x = db.find({'tweets.day': date})
+    print("HERE: " + str(x.count()))
+    for tweets in x:
+        print(tweets)
+    return None
 
 
-def fetch_user_by_username(username):
-    db = initialize_users_db()
-    user = db.find_one({'username': username})
-    return user
+# def fetch_user_by_id(id):
+#     db = initialize_users_db()
+#     user = db.find_one({'id': id})
+#     return user
+#
+#
+# def fetch_user_by_username(username):
+#     db = initialize_users_db()
+#     user = db.find_one({'username': username})
+#     return user
