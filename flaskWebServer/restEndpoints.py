@@ -20,25 +20,32 @@ API ENDPOINTS:
         * upload you tweet archive to your account
     - /tweets [GET]
         * view the tweets you have made on this day from previous years
+    - /token [GET]
+        * Sets the user token, acting like a login route 
 """
 
 
 @auth.verify_password
-def verify_pw(username, password):
-    is_auth, user = check_password(username, password)
-    if not user or not is_auth:
-        return False
-    g.user = User(user['id'], user['username'])
+def verify_pw(username_or_token, password):
+    user = User.verify_token(username_or_token)
+    if not user:
+        is_auth, user = check_password(username_or_token, password)
+        if not user or not is_auth:
+            return False
+        g.user = User(user['id'], user['username'])
+        return True
+    g.user = user
     return True
 
 
 @app.route('/api/token', methods=['GET'])
 @auth.login_required
 def get_auth_token():
-    return jsonify({ 'message' : g.user.get_username()})
+    token = g.user.generate_token()
+    return jsonify({'token': token.decode('ascii')})
 
 
-@app.route('/register', methods=['POST'])
+@app.route('/api/register', methods=['POST'])
 def register():
     """
     Adds new user to system. Needs username and password.
@@ -51,7 +58,7 @@ def register():
     return jsonify({'status': response})
 
 
-@app.route('/upload', methods=['POST'])
+@app.route('/api/upload', methods=['POST'])
 @auth.login_required
 def file_upload():
     """
@@ -65,13 +72,7 @@ def file_upload():
     return jsonify(data)
 
 
-@app.route('/logout', methods=['GET'])
-def logout():
-    # Currently not used since we only have password based auth, later will clear JWT
-    return "You are now logged out"
-
-
-@app.route('/tweets', methods=['GET'])
+@app.route('/api/tweets', methods=['GET'])
 @auth.login_required
 def get_daily_tweets():
     args = request.values

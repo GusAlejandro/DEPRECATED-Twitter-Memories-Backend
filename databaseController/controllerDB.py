@@ -110,3 +110,9 @@ def get_tweets(user_id, month, date):
         return tweets
     else:
         return "No tweets fond"
+
+
+def get_user_by_id(user_id):
+    db = initialize_users_db()
+    user = db.find_one({'id': user_id})
+    return user
