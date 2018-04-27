@@ -8,9 +8,10 @@ Defines set of functions to communicate with DB of choice. Used in /flaskWebServ
 
 DATABASE SPECIFICATIONS
     * NoSQL DB (most likely MongoDB)
-        * User has id, username, tweet archive file, collection of tweets
-            * Collection of tweets broken down by months
+        * User has id, username, and password hash
+        * Tweets has user id and array of tweets w/id, date, and month 
 """
+# TODO: Refactor 'day' to 'date' in DB
 
 
 def initialize_tweets_db():
@@ -26,7 +27,6 @@ def initialize_users_db():
 
 
 def add_tweet_to_db(user_id, tweet_id, month, day):
-    # TODO: will just use the update instead of inser_one
     db = initialize_tweets_db()
     tweet = {
         'id' : tweet_id,
@@ -87,26 +87,26 @@ def check_password(username, password):
 
 
 def get_tweets(user_id, month, date):
-    print("Running the quuery for user_id: " + user_id, "for the month: " + month, "for the day: " + date)
     # format of month/date: MM & DD
     db = initialize_tweets_db()
-    # TODO: figure this query out, only returning the first tweet found, not all
-    # x = db.find({ "user_id": user_id}, {'tweets': { '$elemMatch' : { 'month': month, 'day':date} } })
-    #x = db.find({"user_id": user_id}, {'tweets': {'$elemMatch': {'month': month, 'day': date}}})
-    x = db.find({'tweets.day': date})
-    print("HERE: " + str(x.count()))
-    for tweets in x:
-        print(tweets)
-    return None
-
-
-# def fetch_user_by_id(id):
-#     db = initialize_users_db()
-#     user = db.find_one({'id': id})
-#     return user
-#
-#
-# def fetch_user_by_username(username):
-#     db = initialize_users_db()
-#     user = db.find_one({'username': username})
-#     return user
+    # Aggregate query that checks for a specific user_id, then looks for a matching month and day tweets
+    query = db.aggregate([
+    {
+        '$match': {
+            'user_id': user_id
+        }
+    }, {
+        '$unwind': '$tweets'
+    }, {
+        '$match': {
+            '$and': [ {'tweets.month': month}, {'tweets.day':date}]
+        }
+    }
+    ])
+    tweets = []
+    for data in query:
+        tweets.append(data['tweets'])
+    if tweets:
+        return tweets
+    else:
+        return "No tweets fond"

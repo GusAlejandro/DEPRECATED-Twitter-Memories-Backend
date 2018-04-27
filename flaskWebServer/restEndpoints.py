@@ -18,7 +18,7 @@ API ENDPOINTS:
         * register an account on the service 
     - /fileUpload [POST]
         * upload you tweet archive to your account
-    - /dailyTweets [GET]
+    - /tweets [GET]
         * view the tweets you have made on this day from previous years
 """
 
@@ -74,13 +74,12 @@ def logout():
 @app.route('/tweets', methods=['GET'])
 @auth.login_required
 def get_daily_tweets():
-    # TODO: in db figure out this query
     args = request.values
     month = args['month']
     date = args['date']
     # format of month/date: MM & DD
     response = get_tweets(g.user.get_id(), month, date)
-    return jsonify({'TWEETS':response})
+    return jsonify({'TWEETS': response})
 
 if __name__ == '__main__':
     app.run(host=CONFIG['IP_ADDR'], port=5000)
