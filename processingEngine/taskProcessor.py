@@ -57,7 +57,7 @@ def get_date_for_tweet(id):
 
 
 @app.task()
-def process_csv_file(filepath):
+def process_csv_file(filepath, user_id):
     """
     Main function to process single csv file into database entries
     """
@@ -66,10 +66,14 @@ def process_csv_file(filepath):
         skipTop = False
         for row in tweet_reader:
             if skipTop:
-                id = row[0]
-                date = row[3][:10]
-                controllerDB.add_tweet_to_db(id, date)
-                print("tweet: " + id + " is now done")
-                print("the date was: " + date)
+                tweet_id = row[0]
+                std_date = row[3][:10]
+                month = std_date[5:7]
+                day = std_date[8:10]
+                # TODO: Currently has to open a connection to db on each tweet addition, maybe push all at once ? Store in local redis and then bulk upload ???
+                controllerDB.add_tweet_to_db(user_id,tweet_id, month, day)
+                print("tweet: " + tweet_id + " is now done")
+                print("the day was: " + day)
+                print("the month was: " + month)
             else:
                 skipTop = True
