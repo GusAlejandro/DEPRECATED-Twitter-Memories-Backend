@@ -59,7 +59,7 @@ def register_user(username, password, id):
             'tweets': []
         }
         tweets.insert_one(tweet_collection)
-        return "Account registered successfully!"
+        return "Account registered successfully! You can now login !"
 
 
 def is_username_used(username, db):

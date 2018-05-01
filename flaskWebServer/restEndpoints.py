@@ -50,12 +50,16 @@ def register():
     """
     Adds new user to system. Needs username and password.
     """
-    args = request.values
+    args = request.get_json()
     usernm = args['username']
     passwd = args['password']
     id = str(uuid.uuid4())
     response = register_user(usernm, passwd, id)
     return jsonify({'status': response})
+
+
+
+
 
 
 @app.route('/api/upload', methods=['POST'])
