@@ -17,7 +17,7 @@ TASKS
 
 
 """
-
+# TODO: Rewrite so that file is divided into smaller individual jobs
 app = Celery(broker=CONFIG['MESSAGE_BROKER'])
 app.config_from_object('celeryconfig')
 

@@ -1,12 +1,11 @@
 from flask import Flask, request, jsonify, g
 from flask_cors import CORS
-# from flask_login import LoginManager, login_user, login_required, current_user, logout_user
 from flask_httpauth import HTTPBasicAuth
 from processingEngine.taskProcessor import process_csv_file
-from databaseController.controllerDB import register_user, check_password, get_tweets
+from databaseController.controllerDB import register_user, check_password, get_tweets, mark_file_upload
 from User import User
 from config import CONFIG
-import uuid, os
+import uuid
 
 app = Flask(__name__)
 auth = HTTPBasicAuth()
@@ -32,7 +31,7 @@ def verify_pw(username_or_token, password):
         is_auth, user = check_password(username_or_token, password)
         if not user or not is_auth:
             return False
-        g.user = User(user['id'], user['username'])
+        g.user = User(user['id'], user['username'], user['file_uploaded'])
         return True
     g.user = user
     return True
@@ -58,8 +57,10 @@ def register():
     return jsonify({'status': response})
 
 
-
-
+@app.route('/api/file_status', methods=['GET'])
+@auth.login_required
+def get_file_status():
+    return jsonify({'file_status': g.user.get_file_status()})
 
 
 @app.route('/api/upload', methods=['POST'])
@@ -84,6 +85,7 @@ def get_daily_tweets():
     date = args['date']
     # format of month/date: MM & DD
     response = get_tweets(g.user.get_id(), month, date)
+    mark_file_upload(g.user.get_id())
     return jsonify({'TWEETS': response})
 
 if __name__ == '__main__':

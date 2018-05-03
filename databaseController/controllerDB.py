@@ -51,7 +51,8 @@ def register_user(username, password, id):
         user = {
             'id': id,
             'username': username,
-            'password_hash': hashed
+            'password_hash': hashed,
+            'file_uploaded': False
         }
         db.insert_one(user)
         tweet_collection = {
@@ -109,10 +110,15 @@ def get_tweets(user_id, month, date):
     if tweets:
         return tweets
     else:
-        return "No tweets fond"
+        return "No tweets found"
 
 
 def get_user_by_id(user_id):
     db = initialize_users_db()
     user = db.find_one({'id': user_id})
     return user
+
+
+def mark_file_upload(user_id):
+    db = initialize_users_db()
+    db.updae({'id': user_id}, {'file_uploaded': True})
