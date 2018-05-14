@@ -2,14 +2,18 @@ from flask import Flask, request, jsonify, g
 from flask_cors import CORS
 from flask_httpauth import HTTPBasicAuth
 from processingEngine.taskProcessor import process_csv_file
-from databaseController.controllerDB import register_user, check_password, get_tweets, mark_file_upload
+from databaseController.controllerDB import register_user, check_password, get_tweets, set_file_status, upload_file
 from User import User
-from config import CONFIG
+from config import CONFIG, FB_CONFIG, auth_login
 import uuid
+import pyrebase
 
 app = Flask(__name__)
 auth = HTTPBasicAuth()
 CORS(app)
+firebase = pyrebase.initialize_app(FB_CONFIG)
+fb_auth = firebase.auth()
+
 
 """
 API ENDPOINTS:
@@ -63,6 +67,7 @@ def get_file_status():
     return jsonify({'file_status': g.user.get_file_status()})
 
 
+# TODO: Works, but takes a bit too long. Might want to make it async or offload upload to another server
 @app.route('/api/upload', methods=['POST'])
 @auth.login_required
 def file_upload():
@@ -72,8 +77,10 @@ def file_upload():
     csv_file = request.files['file']
     csv_file.filename = str(uuid.uuid4()) + ".csv"
     csv_file.save('FILES/' + csv_file.filename)
+    upload_file(firebase, csv_file.filename, 'FILES/' + csv_file.filename, fb_auth)
     data = {'file-code': csv_file.filename}
-    process_csv_file.delay("FILES/" + csv_file.filename, g.user.get_id())
+    # process_csv_file.delay("FILES/" + csv_file.filename, g.user.get_id())
+    set_file_status(g.user.get_id(), '1')
     return jsonify(data)
 
 
@@ -85,7 +92,6 @@ def get_daily_tweets():
     date = args['date']
     # format of month/date: MM & DD
     response = get_tweets(g.user.get_id(), month, date)
-    mark_file_upload(g.user.get_id())
     return jsonify({'TWEETS': response})
 
 if __name__ == '__main__':

@@ -1,5 +1,5 @@
 from pymongo import MongoClient
-from config import CONFIG
+from config import CONFIG, auth_login
 import bcrypt
 
 
@@ -15,7 +15,7 @@ DATABASE SPECIFICATIONS
 
 
 def initialize_tweets_db():
-    mongoClient = MongoClient(CONFIG['MONGODB_ADDR'])
+    mongoClient = MongoClient(CONFIG['MONGODB_ADDR'], socketTimeoutMS=5400000, connectTimeoutMS=5400000)
     database = mongoClient['twitter-memories']
     return database.tweets
 
@@ -48,11 +48,13 @@ def register_user(username, password, id):
         hashed = bcrypt.hashpw(password.encode(), bcrypt.gensalt())
         # we have to decode the hash to we can store it as a string
         hashed = hashed.decode()
+        # File Status 0 - No upload, 1 - Processing, 2 - Done
         user = {
             'id': id,
             'username': username,
             'password_hash': hashed,
-            'file_uploaded': False
+            'file_status': '0',
+            'file_ref_ids': []
         }
         db.insert_one(user)
         tweet_collection = {
@@ -61,6 +63,14 @@ def register_user(username, password, id):
         }
         tweets.insert_one(tweet_collection)
         return "Account registered successfully! You can now login !"
+
+
+def update_file_ref_ids(filepath, id):
+    db = initialize_users_db()
+    db.find_one_and_update(
+        {'id': id},
+        {'$addToSet': {'file_ref_ids': filepath}}
+    )
 
 
 def is_username_used(username, db):
@@ -119,6 +129,21 @@ def get_user_by_id(user_id):
     return user
 
 
-def mark_file_upload(user_id):
+def set_file_status(user_id, status):
+    # File Status 0 - No upload, 1 - Processing, 2 - Done
     db = initialize_users_db()
-    db.updae({'id': user_id}, {'file_uploaded': True})
+    db.update({'id': user_id}, {'file_status': status})
+
+# ABOVE IS FOR MONGODB, BELOW IS FOR FIREBASE
+
+
+# Purpose of this function is to prevent stale tokens, only need to do once an hour, change later to seperate process
+def auth_server_as_user(auth_object):
+    return auth_object.sign_in_with_email_and_password(auth_login['email'], auth_login['password'])
+
+
+def upload_file(firebase, file_name, file_path, auth):
+    # TODO: Currently not returning the status of upload, assuming it is succesful, need error catching later
+    user = auth_server_as_user(auth)
+    storage = firebase.storage()
+    storage.child('Files/'+file_name).put(file_path, user['idToken'])

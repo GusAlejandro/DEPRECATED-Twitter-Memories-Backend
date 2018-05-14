@@ -55,7 +55,7 @@ def get_date_for_tweet(id):
         print("page was suspended or private or other error ")
 
 
-
+# TODO: Make this funciton breakup the file, then another one that will do the write to db, this one should delete the base file
 @app.task()
 def process_csv_file(filepath, user_id):
     """
@@ -63,17 +63,20 @@ def process_csv_file(filepath, user_id):
     """
     with open(filepath, newline='') as csvfile:
         tweet_reader = csv.reader(csvfile, delimiter=',')
-        skipTop = False
+        next(tweet_reader)
         for row in tweet_reader:
-            if skipTop:
-                tweet_id = row[0]
-                std_date = row[3][:10]
-                month = std_date[5:7]
-                day = std_date[8:10]
-                # TODO: Currently has to open a connection to db on each tweet addition, maybe push all at once ? Store in local redis and then bulk upload ???
-                controllerDB.add_tweet_to_db(user_id,tweet_id, month, day)
-                print("tweet: " + tweet_id + " is now done")
-                print("the day was: " + day)
-                print("the month was: " + month)
-            else:
-                skipTop = True
+            tweet_id = row[0]
+            std_date = row[3][:10]
+            month = std_date[5:7]
+            day = std_date[8:10]
+            # TODO: Currently has to open a connection to db on each tweet addition, maybe push all at once ? Store in local redis and then bulk upload ???
+            controllerDB.add_tweet_to_db(user_id,tweet_id, month, day)
+            print("tweet: " + tweet_id + " is now done")
+            print("the day was: " + day)
+            print("the month was: " + month)
+
+
+
+@app.task()
+def file_to_database(filepath, user_id):
+    pass

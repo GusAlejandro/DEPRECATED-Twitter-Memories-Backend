@@ -3,3 +3,5 @@ venv/
 config.py
 .DS_Store
 __pycache__/
+
+admin.json
