@@ -1,18 +1,25 @@
-from flask import Flask, request, jsonify, g
+from flask import Flask, request, jsonify, g, send_from_directory
 from flask_cors import CORS
 from flask_httpauth import HTTPBasicAuth
 from processingEngine.taskProcessor import process_csv_file
-from databaseController.controllerDB import register_user, check_password, get_tweets, set_file_status, upload_file
+from databaseController.controllerDB import register_user, check_password, get_tweets, set_file_status, get_file_status
 from User import User
-from config import CONFIG, FB_CONFIG, auth_login
+from config import CONFIG, auth_login
 import uuid
-import pyrebase
+import os
+
 
 app = Flask(__name__)
 auth = HTTPBasicAuth()
 CORS(app)
-firebase = pyrebase.initialize_app(FB_CONFIG)
-fb_auth = firebase.auth()
+
+
+def authenticate_request_for_file(email, password):
+    # TODO: everything is done via plaintext, ideally we want this to be stored as a hash
+    if email == auth_login['email'] and password == auth_login['password']:
+        return True
+    else:
+        return False
 
 
 """
@@ -35,7 +42,7 @@ def verify_pw(username_or_token, password):
         is_auth, user = check_password(username_or_token, password)
         if not user or not is_auth:
             return False
-        g.user = User(user['id'], user['username'], user['file_uploaded'])
+        g.user = User(user['id'], user['username'])
         return True
     g.user = user
     return True
@@ -63,8 +70,8 @@ def register():
 
 @app.route('/api/file_status', methods=['GET'])
 @auth.login_required
-def get_file_status():
-    return jsonify({'file_status': g.user.get_file_status()})
+def check_file_status():
+    return jsonify({'file_status': get_file_status(g.user.get_id())})
 
 
 # TODO: Works, but takes a bit too long. Might want to make it async or offload upload to another server
@@ -77,9 +84,8 @@ def file_upload():
     csv_file = request.files['file']
     csv_file.filename = str(uuid.uuid4()) + ".csv"
     csv_file.save('FILES/' + csv_file.filename)
-    upload_file(firebase, csv_file.filename, 'FILES/' + csv_file.filename, fb_auth)
     data = {'file-code': csv_file.filename}
-    # process_csv_file.delay("FILES/" + csv_file.filename, g.user.get_id())
+    process_csv_file.delay(csv_file.filename, g.user.get_id())
     set_file_status(g.user.get_id(), '1')
     return jsonify(data)
 
@@ -94,8 +100,24 @@ def get_daily_tweets():
     response = get_tweets(g.user.get_id(), month, date)
     return jsonify({'TWEETS': response})
 
+
+# TODO: Not ideal, but will add endpoints for celery worker to download files
+
+@app.route('/api/download', methods=['GET'])
+def file_download():
+    args = request.values
+    email = args['email']
+    password = args['password']
+    if authenticate_request_for_file(email, password):
+        file_name = args['file']
+        path = os.path.abspath('FILES')
+        return send_from_directory(directory=path, filename=file_name)
+    else:
+        return jsonify({'request-status': 'ACCESS DENIED'})
+
+
 if __name__ == '__main__':
-    app.run(host=CONFIG['IP_ADDR'], port=5000)
+    app.run(host=CONFIG['IP_ADDR'], threaded=True ,port=5000)
 
 # curl : curl -X POST --data "username=john" --data "password=lalala"  http://192.168.1.118:5000/register
 # curl command : curl -X POST -F "file=@Downloads/2.csv" http://192.168.1.118:5000/upload

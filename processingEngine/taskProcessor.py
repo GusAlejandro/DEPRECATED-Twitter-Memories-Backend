@@ -2,7 +2,8 @@ from databaseController import controllerDB
 from bs4 import BeautifulSoup
 import csv, time, requests
 from celery import Celery
-from config import CONFIG
+from config import CONFIG, auth_login, WORKER_CONFIG
+import requests
 """
 Fetches tasks from the job queue and executes them.
 Requires access to DB via controller, same as the one used in web server.
@@ -56,24 +57,31 @@ def get_date_for_tweet(id):
 
 
 # TODO: Make this funciton breakup the file, then another one that will do the write to db, this one should delete the base file
+# tODO: currently gives 404 on download
 @app.task()
-def process_csv_file(filepath, user_id):
+def process_csv_file(file_name, user_id):
     """
     Main function to process single csv file into database entries
     """
-    with open(filepath, newline='') as csvfile:
-        tweet_reader = csv.reader(csvfile, delimiter=',')
-        next(tweet_reader)
-        for row in tweet_reader:
-            tweet_id = row[0]
-            std_date = row[3][:10]
-            month = std_date[5:7]
-            day = std_date[8:10]
-            # TODO: Currently has to open a connection to db on each tweet addition, maybe push all at once ? Store in local redis and then bulk upload ???
-            controllerDB.add_tweet_to_db(user_id,tweet_id, month, day)
-            print("tweet: " + tweet_id + " is now done")
-            print("the day was: " + day)
-            print("the month was: " + month)
+    # First step is to download the file from the web server
+    auth_login['file'] = file_name
+    r = requests.get(WORKER_CONFIG['FILE_DOWNLOAD_ENDPOINT'], auth_login)
+    open(file_name,'wb').write(r.content)
+    print("PROCESS HAS FINISHED")
+    #
+    # with open(filepath, newline='') as csvfile:
+    #     tweet_reader = csv.reader(csvfile, delimiter=',')
+    #     next(tweet_reader)
+    #     for row in tweet_reader:
+    #         tweet_id = row[0]
+    #         std_date = row[3][:10]
+    #         month = std_date[5:7]
+    #         day = std_date[8:10]
+    #         # TODO: Currently has to open a connection to db on each tweet addition, maybe push all at once ? Store in local redis and then bulk upload ???
+    #         controllerDB.add_tweet_to_db(user_id,tweet_id, month, day)
+    #         print("tweet: " + tweet_id + " is now done")
+    #         print("the day was: " + day)
+    #         print("the month was: " + month)
 
 
 

@@ -1,6 +1,10 @@
 from pymongo import MongoClient
-from config import CONFIG, auth_login
+from config import CONFIG, auth_login, FB_CONFIG
 import bcrypt
+import pyrebase
+
+firebase = pyrebase.initialize_app(FB_CONFIG)
+fb_auth = firebase.auth()
 
 
 """
@@ -132,16 +136,26 @@ def get_user_by_id(user_id):
 def set_file_status(user_id, status):
     # File Status 0 - No upload, 1 - Processing, 2 - Done
     db = initialize_users_db()
-    db.update({'id': user_id}, {'file_status': status})
+    db.find_one_and_update(
+        {'id': user_id},
+        {'$set': {'file_status': status}}
+    )
 
-# ABOVE IS FOR MONGODB, BELOW IS FOR FIREBASE
+
+def get_file_status(user_id):
+    db = initialize_users_db()
+    query = db.find_one({'id': user_id})
+    return query['file_status']
+
+# ABOVE IS FOR MONGODB, BELOW IS FOR FIREBASE/API SERVER/Processing engine ?
 
 
 # Purpose of this function is to prevent stale tokens, only need to do once an hour, change later to seperate process
-def auth_server_as_user(auth_object):
-    return auth_object.sign_in_with_email_and_password(auth_login['email'], auth_login['password'])
+def firebase_user_auth(email, password):
+    return fb_auth.sign_in_with_email_and_password(email, password)
 
 
+# NO LONGER GOING TO USE, REPLACE WITH DOWNLOAD FILE FUNCITON
 def upload_file(firebase, file_name, file_path, auth):
     # TODO: Currently not returning the status of upload, assuming it is succesful, need error catching later
     user = auth_server_as_user(auth)
