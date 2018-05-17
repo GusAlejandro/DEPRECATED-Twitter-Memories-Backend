@@ -2,8 +2,11 @@ from databaseController import controllerDB
 from bs4 import BeautifulSoup
 import csv, time, requests
 from celery import Celery
-from config import CONFIG, auth_login, WORKER_CONFIG
+from config import CONFIG, auth_login, WORKER_CONFIG, FB_CONFIG
 import requests
+import pyrebase
+
+
 """
 Fetches tasks from the job queue and executes them.
 Requires access to DB via controller, same as the one used in web server.
@@ -18,10 +21,10 @@ TASKS
 
 
 """
-# TODO: Rewrite so that file is divided into smaller individual jobs
 app = Celery(broker=CONFIG['MESSAGE_BROKER'])
 app.config_from_object('celeryconfig')
-
+firebase = pyrebase.initialize_app(FB_CONFIG)
+fb_auth = firebase.auth()
 
 
 def get_date_for_tweet(id):
@@ -56,8 +59,6 @@ def get_date_for_tweet(id):
         print("page was suspended or private or other error ")
 
 
-# TODO: Make this funciton breakup the file, then another one that will do the write to db, this one should delete the base file
-# tODO: currently gives 404 on download
 @app.task()
 def process_csv_file(file_name, user_id):
     """
@@ -66,25 +67,22 @@ def process_csv_file(file_name, user_id):
     # First step is to download the file from the web server
     auth_login['file'] = file_name
     r = requests.get(WORKER_CONFIG['FILE_DOWNLOAD_ENDPOINT'], auth_login)
-    open(file_name,'wb').write(r.content)
-    print("PROCESS HAS FINISHED")
-    #
-    # with open(filepath, newline='') as csvfile:
-    #     tweet_reader = csv.reader(csvfile, delimiter=',')
-    #     next(tweet_reader)
-    #     for row in tweet_reader:
-    #         tweet_id = row[0]
-    #         std_date = row[3][:10]
-    #         month = std_date[5:7]
-    #         day = std_date[8:10]
-    #         # TODO: Currently has to open a connection to db on each tweet addition, maybe push all at once ? Store in local redis and then bulk upload ???
-    #         controllerDB.add_tweet_to_db(user_id,tweet_id, month, day)
-    #         print("tweet: " + tweet_id + " is now done")
-    #         print("the day was: " + day)
-    #         print("the month was: " + month)
+    open('processingEngine/' + file_name, 'wb').write(r.content)
+    # print("PROCESS HAS FINISHED")
+    db_tweets = controllerDB.initialize_tweets_db()
+    db_users = controllerDB.initialize_users_db()
+    with open('processingEngine/'+file_name, newline='') as csvfile:
+        tweet_reader = csv.reader(csvfile, delimiter=',')
+        next(tweet_reader)
+        for row in tweet_reader:
+            tweet_id = row[0]
+            std_date = row[3][:10]
+            month = std_date[5:7]
+            day = std_date[8:10]
+            if int(month) >= 5:
+                controllerDB.add_tweet_to_db(db_tweets, user_id,tweet_id, month, day)
+                print("tweet: " + tweet_id + " is now done")
+                print("the day was: " + day)
+                #         print("the month was: " + month)
+    controllerDB.set_file_status(db_users, user_id, '2')
 
-
-
-@app.task()
-def file_to_database(filepath, user_id):
-    pass

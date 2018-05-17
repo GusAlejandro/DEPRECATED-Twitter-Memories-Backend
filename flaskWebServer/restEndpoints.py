@@ -2,7 +2,7 @@ from flask import Flask, request, jsonify, g, send_from_directory
 from flask_cors import CORS
 from flask_httpauth import HTTPBasicAuth
 from processingEngine.taskProcessor import process_csv_file
-from databaseController.controllerDB import register_user, check_password, get_tweets, set_file_status, get_file_status
+from databaseController.controllerDB import register_user, check_password, get_tweets, set_file_status, get_file_status, initialize_users_db
 from User import User
 from config import CONFIG, auth_login
 import uuid
@@ -86,7 +86,8 @@ def file_upload():
     csv_file.save('FILES/' + csv_file.filename)
     data = {'file-code': csv_file.filename}
     process_csv_file.delay(csv_file.filename, g.user.get_id())
-    set_file_status(g.user.get_id(), '1')
+    db = initialize_users_db()
+    set_file_status(db, g.user.get_id(), '1')
     return jsonify(data)
 
 

@@ -30,8 +30,7 @@ def initialize_users_db():
     return database.users
 
 
-def add_tweet_to_db(user_id, tweet_id, month, day):
-    db = initialize_tweets_db()
+def add_tweet_to_db(db, user_id, tweet_id, month, day):
     tweet = {
         'id' : tweet_id,
         'month': month,
@@ -133,9 +132,8 @@ def get_user_by_id(user_id):
     return user
 
 
-def set_file_status(user_id, status):
+def set_file_status(db, user_id, status):
     # File Status 0 - No upload, 1 - Processing, 2 - Done
-    db = initialize_users_db()
     db.find_one_and_update(
         {'id': user_id},
         {'$set': {'file_status': status}}
