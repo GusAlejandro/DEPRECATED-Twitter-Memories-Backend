@@ -1,21 +1,10 @@
 from pymongo import MongoClient
-from config import CONFIG, auth_login, FB_CONFIG
+from config import CONFIG
 import bcrypt
-import pyrebase
-
-firebase = pyrebase.initialize_app(FB_CONFIG)
-fb_auth = firebase.auth()
-
 
 """
-Defines set of functions to communicate with DB of choice. Used in /flaskWebServer and /processingEngine .
-
-DATABASE SPECIFICATIONS
-    * NoSQL DB (most likely MongoDB)
-        * User has id, username, and password hash
-        * Tweets has user id and array of tweets w/id, date, and month 
+Defines set of functions to communicate with MongoDB. 
 """
-# TODO: Refactor 'day' to 'date' in DB
 
 
 def initialize_tweets_db():
@@ -31,6 +20,7 @@ def initialize_users_db():
 
 
 def add_tweet_to_db(db, user_id, tweet_id, month, day):
+    # TODO: Refactor 'day' to 'date' in DB
     tweet = {
         'id' : tweet_id,
         'month': month,
@@ -43,6 +33,7 @@ def add_tweet_to_db(db, user_id, tweet_id, month, day):
 
 
 def register_user(username, password, id):
+    # TODO: Remove file_ref_ids from user
     tweets = initialize_tweets_db()
     db = initialize_users_db()
     if is_username_used(username, db):
@@ -101,7 +92,7 @@ def check_password(username, password):
 
 
 def get_tweets(user_id, month, date):
-    # format of month/date: MM & DD
+    # format of month/date: MM/DD
     db = initialize_tweets_db()
     # Aggregate query that checks for a specific user_id, then looks for a matching month and day tweets
     query = db.aggregate([
@@ -123,7 +114,7 @@ def get_tweets(user_id, month, date):
     if tweets:
         return tweets
     else:
-        return "No tweets found"
+        return []
 
 
 def get_user_by_id(user_id):
@@ -144,18 +135,3 @@ def get_file_status(user_id):
     db = initialize_users_db()
     query = db.find_one({'id': user_id})
     return query['file_status']
-
-# ABOVE IS FOR MONGODB, BELOW IS FOR FIREBASE/API SERVER/Processing engine ?
-
-
-# Purpose of this function is to prevent stale tokens, only need to do once an hour, change later to seperate process
-def firebase_user_auth(email, password):
-    return fb_auth.sign_in_with_email_and_password(email, password)
-
-
-# NO LONGER GOING TO USE, REPLACE WITH DOWNLOAD FILE FUNCITON
-def upload_file(firebase, file_name, file_path, auth):
-    # TODO: Currently not returning the status of upload, assuming it is succesful, need error catching later
-    user = auth_server_as_user(auth)
-    storage = firebase.storage()
-    storage.child('Files/'+file_name).put(file_path, user['idToken'])

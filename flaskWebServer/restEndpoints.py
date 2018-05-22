@@ -16,27 +16,18 @@ CORS(app)
 
 def authenticate_request_for_file(email, password):
     # TODO: everything is done via plaintext, ideally we want this to be stored as a hash
+    # TODO: Look into just using 3rd party auth service
     if email == auth_login['email'] and password == auth_login['password']:
         return True
     else:
         return False
 
 
-"""
-API ENDPOINTS:
-    - /register [POST]
-        * register an account on the service 
-    - /fileUpload [POST]
-        * upload you tweet archive to your account
-    - /tweets [GET]
-        * view the tweets you have made on this day from previous years
-    - /token [GET]
-        * Sets the user token, acting like a login route 
-"""
-
-
 @auth.verify_password
 def verify_pw(username_or_token, password):
+    """
+    used by login_required decorator to authenticate requests via username/password combo or token
+    """
     user = User.verify_token(username_or_token)
     if not user:
         is_auth, user = check_password(username_or_token, password)
@@ -47,6 +38,10 @@ def verify_pw(username_or_token, password):
     g.user = user
     return True
 
+
+"""
+Below are the API endpoints that the client will use
+"""
 
 @app.route('/api/token', methods=['GET'])
 @auth.login_required
@@ -71,6 +66,9 @@ def register():
 @app.route('/api/file_status', methods=['GET'])
 @auth.login_required
 def check_file_status():
+    """
+    Used by web app to check status on processing Twitter Archive file.
+    """
     return jsonify({'file_status': get_file_status(g.user.get_id())})
 
 
@@ -94,6 +92,9 @@ def file_upload():
 @app.route('/api/tweets', methods=['GET'])
 @auth.login_required
 def get_daily_tweets():
+    """
+    Takes month and date in format MM and DD, respectively, returns user tweets for that day.
+    """
     args = request.values
     month = args['month']
     date = args['date']
@@ -102,7 +103,10 @@ def get_daily_tweets():
     return jsonify({'TWEETS': response})
 
 
-# TODO: Not ideal, but will add endpoints for celery worker to download files
+"""
+Below are the endpoints that the celery worker process will use, seperate from the client endpoints 
+"""
+
 
 @app.route('/api/download', methods=['GET'])
 def file_download():

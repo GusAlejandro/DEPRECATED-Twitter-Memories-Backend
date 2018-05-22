@@ -1,30 +1,17 @@
 from databaseController import controllerDB
 from bs4 import BeautifulSoup
-import csv, time, requests
+import csv
 from celery import Celery
-from config import CONFIG, auth_login, WORKER_CONFIG, FB_CONFIG
+from config import CONFIG, auth_login, WORKER_CONFIG
 import requests
-import pyrebase
 
 
 """
 Fetches tasks from the job queue and executes them.
-Requires access to DB via controller, same as the one used in web server.
-
-
-TASKS
-    * Processing tweet archive file from CSV file to DB format
-        * Tweet Object
-            - id
-            - date
-
-
-
 """
+
 app = Celery(broker=CONFIG['MESSAGE_BROKER'])
 app.config_from_object('celeryconfig')
-firebase = pyrebase.initialize_app(FB_CONFIG)
-fb_auth = firebase.auth()
 
 
 def get_date_for_tweet(id):
@@ -62,15 +49,15 @@ def get_date_for_tweet(id):
 @app.task()
 def process_csv_file(file_name, user_id):
     """
-    Main function to process single csv file into database entries
+    Main task to process single csv file into database entries.
     """
     # First step is to download the file from the web server
     auth_login['file'] = file_name
     r = requests.get(WORKER_CONFIG['FILE_DOWNLOAD_ENDPOINT'], auth_login)
     open('processingEngine/' + file_name, 'wb').write(r.content)
-    # print("PROCESS HAS FINISHED")
     db_tweets = controllerDB.initialize_tweets_db()
     db_users = controllerDB.initialize_users_db()
+    # iterates over every tweet and writes it into the DB
     with open('processingEngine/'+file_name, newline='') as csvfile:
         tweet_reader = csv.reader(csvfile, delimiter=',')
         next(tweet_reader)
@@ -83,6 +70,6 @@ def process_csv_file(file_name, user_id):
                 controllerDB.add_tweet_to_db(db_tweets, user_id,tweet_id, month, day)
                 print("tweet: " + tweet_id + " is now done")
                 print("the day was: " + day)
-                #         print("the month was: " + month)
+                print("the month was: " + month)
     controllerDB.set_file_status(db_users, user_id, '2')
 
