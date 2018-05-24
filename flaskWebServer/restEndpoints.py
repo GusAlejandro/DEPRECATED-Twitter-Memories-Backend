@@ -121,8 +121,8 @@ def file_download():
         return jsonify({'request-status': 'ACCESS DENIED'})
 
 
-if __name__ == '__main__':
-    app.run(host=CONFIG['IP_ADDR'], threaded=True ,port=5000)
+# if __name__ == '__main__':
+#     app.run(host=CONFIG['IP_ADDR'], threaded=True ,port=5000)
 
 # curl : curl -X POST --data "username=john" --data "password=lalala"  http://192.168.1.118:5000/register
 # curl command : curl -X POST -F "file=@Downloads/2.csv" http://192.168.1.118:5000/upload
