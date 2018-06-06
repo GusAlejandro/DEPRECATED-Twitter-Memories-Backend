@@ -81,7 +81,7 @@ def file_upload():
     """
     csv_file = request.files['file']
     csv_file.filename = str(uuid.uuid4()) + ".csv"
-    csv_file.save('FILES/' + csv_file.filename)
+    csv_file.save(CONFIG['FILE_PATH'] + csv_file.filename)
     data = {'file-code': csv_file.filename}
     process_csv_file.delay(csv_file.filename, g.user.get_id())
     db = initialize_users_db()
